@@ -11,6 +11,8 @@
 
 namespace huffman {
 
+// Tree form
+
 template <typename T>
 struct node_t {
     using ptr = std::unique_ptr<node_t>;
@@ -40,16 +42,41 @@ struct code_node_t {
 
 std::ostream& operator << (std::ostream& ostr, const code_node_t& code_node);
 
-using code_table_t = node_t<code_node_t>;
+//using code_table_t = node_t<code_node_t>;
 
-struct symbol_freq_t {
-    char c;
-    int freq;
+// Vector form
+
+struct code_vnode_t {
+    std::string symbols {};
+    unsigned weight {};
+    int left {-1};
+    int right {-1};
+};
+
+struct code_table_t {
+    code_vnode_t* root();
+    const code_vnode_t* root() const;
+
+    bool is_leaf(const code_vnode_t* node) const;
+
+    code_vnode_t* left(const code_vnode_t* node);
+    code_vnode_t* right(const code_vnode_t* node);
+    const code_vnode_t* left(const code_vnode_t* node) const;
+    const code_vnode_t* right(const code_vnode_t* node) const;
+
+    std::vector<code_vnode_t> nodes_;
+};
+
+std::ostream& operator << (std::ostream& ostr, const code_table_t& code_table);
+
+struct symbol_def_t {
+    char symbol;
+    unsigned weight;
 };
 
 struct bit_vect_t {}; // TODO
 
-code_table_t build(std::vector<symbol_freq_t> frequencies);
+code_table_t build(std::vector<symbol_def_t> alphabet);
 std::string decode(const code_table_t& code_table, bit_vect_t message);
 bit_vect_t encode(const code_table_t& code_table, std::string_view text);
 
