@@ -17,6 +17,9 @@ struct code_vnode_t {
     unsigned weight {};
     int left {-1};
     int right {-1};
+
+    bool is_leaf() const;
+    bool encodes(char c) const;
 };
 
 class code_table_t {
@@ -26,7 +29,6 @@ public:
     const code_vnode_t* root() const;
     const code_vnode_t* left(const code_vnode_t* node) const;
     const code_vnode_t* right(const code_vnode_t* node) const;
-    bool is_leaf(const code_vnode_t* node) const;
 
 private:
     std::vector<code_vnode_t> nodes_;
@@ -39,7 +41,8 @@ struct symbol_def_t {
     unsigned weight;
 };
 
-struct bit_vect_t {}; // TODO
+/// TODO: change to a more efficient implementation.
+using bit_vect_t = std::string;
 
 code_table_t build(std::vector<symbol_def_t> alphabet);
 std::string decode(const code_table_t& code_table, bit_vect_t message);
