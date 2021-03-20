@@ -11,24 +11,36 @@
 
 namespace huffman {
 
-struct code_table_t {
-    using code_table_ptr = std::unique_ptr<code_table_t>;
+template <typename T>
+struct node_t {
+    using ptr = std::unique_ptr<node_t>;
 
-    std::string symbols {};
-    unsigned weight;
-    code_table_ptr left = nullptr;
-    code_table_ptr right = nullptr;
+    T data;
+    ptr left = nullptr;
+    ptr right = nullptr;
 
-    code_table_t(const std::string& symbols_p, unsigned weight_p, code_table_ptr&& left_p, code_table_ptr&& right_p)
-        : symbols(symbols_p), weight(weight_p), left(std::move(left_p)), right(std::move(right_p)) {}
-    code_table_t(const std::string& symbols_p, unsigned weight_p)
-        : symbols(symbols_p), weight(weight_p) {}
+    node_t(const T& data_p, ptr&& left_p, ptr&& right_p)
+        : data(data_p), left(std::move(left_p)), right(std::move(right_p)) {}
 
-    code_table_t(const code_table_t&) = delete;
-    code_table_t& operator=(const code_table_t&) = delete;
+    node_t(const node_t&) = delete;
+    node_t& operator=(const node_t&) = delete;
+
+    static ptr make_node_ptr(const T& data_p, ptr&& left_p, ptr&& right_p) {
+        return std::make_unique<node_t<T>>(data_p, std::move(left_p), std::move(right_p));
+    }
 };
 
-std::ostream& operator << (std::ostream& ostr, const huffman::code_table_t& code_table);
+template <typename T>
+std::ostream& operator << (std::ostream& ostr, const node_t<T>& root);
+
+struct code_node_t {
+    std::string symbols {};
+    unsigned weight {0};
+};
+
+std::ostream& operator << (std::ostream& ostr, const code_node_t& code_node);
+
+using code_table_t = node_t<code_node_t>;
 
 struct symbol_freq_t {
     char c;

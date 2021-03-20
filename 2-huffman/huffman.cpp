@@ -5,32 +5,38 @@
 
 namespace huffman {
 
-code_table_t build(std::vector<symbol_freq_t> frequencies) {
-    // TODO
-    return {
-        "A B C", 3,
-        std::make_unique<code_table_t>("B", 1, nullptr, nullptr),
-        std::make_unique<code_table_t>("C", 1, nullptr, nullptr),
-    };
-}
-
-std::ostream& operator << (std::ostream& ostr, const huffman::code_table_t& code_table) {
+template <typename T>
+std::ostream& operator << (std::ostream& ostr, const node_t<T>& root) {
     constexpr auto indent_spaces = 2;
     auto level = 0;
     auto indent = [&] {
         return std::string(level * indent_spaces, ' ');
     };
     // Use `printer` to call `print_table` recrusively.
-    auto print_table = [&](const huffman::code_table_t& node, auto& printer) -> void {
+    auto print_node = [&](const auto& node, auto& printer) -> void {
         ++level;
-        ostr << indent() << "{" << node.symbols << "} " << node.weight << "\n";
+        ostr << indent() << node.data << "\n";
         if (node.left) printer(*node.left, printer);
         if (node.right) printer(*node.right, printer);
         --level;
     };
-    print_table(code_table, print_table);
+    print_node(root, print_node);
     return ostr;
 }
+
+std::ostream& operator << (std::ostream& ostr, const code_node_t& code_node) {
+    return ostr << "{" << code_node.symbols << "} " << code_node.weight;
+}
+
+code_table_t build(std::vector<symbol_freq_t> frequencies) {
+    // TODO
+    return {
+        { "A B C", 3 },
+        code_table_t::make_node_ptr({ "B", 1 }, nullptr, nullptr),
+        code_table_t::make_node_ptr({ "C", 1 }, nullptr, nullptr)
+    };
+}
+
 
 } // namespace huffman
 
