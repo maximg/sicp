@@ -8,43 +8,9 @@
 #include <vector>
 
 /// Huffman code builder, endocder and decoder.
+/// Code table is a vector, linked via indices.
 
 namespace huffman {
-
-// Tree form
-
-template <typename T>
-struct node_t {
-    using ptr = std::unique_ptr<node_t>;
-
-    T data;
-    ptr left = nullptr;
-    ptr right = nullptr;
-
-    node_t(const T& data_p, ptr&& left_p, ptr&& right_p)
-        : data(data_p), left(std::move(left_p)), right(std::move(right_p)) {}
-
-    node_t(const node_t&) = delete;
-    node_t& operator=(const node_t&) = delete;
-
-    static ptr make_node_ptr(const T& data_p, ptr&& left_p, ptr&& right_p) {
-        return std::make_unique<node_t<T>>(data_p, std::move(left_p), std::move(right_p));
-    }
-};
-
-template <typename T>
-std::ostream& operator << (std::ostream& ostr, const node_t<T>& root);
-
-struct code_node_t {
-    std::string symbols {};
-    unsigned weight {0};
-};
-
-std::ostream& operator << (std::ostream& ostr, const code_node_t& code_node);
-
-//using code_table_t = node_t<code_node_t>;
-
-// Vector form
 
 struct code_vnode_t {
     std::string symbols {};
@@ -53,17 +19,16 @@ struct code_vnode_t {
     int right {-1};
 };
 
-struct code_table_t {
-    code_vnode_t* root();
+class code_table_t {
+public:
+    explicit code_table_t(std::vector<code_vnode_t>&& nodes) : nodes_(std::move(nodes)) {}
+
     const code_vnode_t* root() const;
-
-    bool is_leaf(const code_vnode_t* node) const;
-
-    code_vnode_t* left(const code_vnode_t* node);
-    code_vnode_t* right(const code_vnode_t* node);
     const code_vnode_t* left(const code_vnode_t* node) const;
     const code_vnode_t* right(const code_vnode_t* node) const;
+    bool is_leaf(const code_vnode_t* node) const;
 
+private:
     std::vector<code_vnode_t> nodes_;
 };
 
