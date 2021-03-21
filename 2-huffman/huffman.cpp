@@ -1,16 +1,13 @@
 
 #include "huffman.hpp"
 
+#include <cassert>
 #include <queue>
+#include <sstream>
 #include <stdexcept>
 #include <string_view>
 
 namespace huffman {
-
-void ensure(bool cond, std::string_view message) {
-    if (!cond)
-        throw std::runtime_error(std::string(message));
-}
 
 template <typename T>
 int sign(T value) {
@@ -18,7 +15,7 @@ int sign(T value) {
 }
 
 bool code_table_t::node_t::is_leaf() const {
-    ensure(sign(left) == sign(right), "unbalanced node");
+    assert(sign(left) == sign(right) && "unbalanced node");
     return left < 0 && right < 0;
 }
 
@@ -26,18 +23,23 @@ bool code_table_t::node_t::encodes(char c) const {
     return symbols.find(c) != std::string::npos;
 }
 
+char code_table_t::node_t::symbol() const {
+    assert(is_leaf() && "not a leaf node");
+    return symbols.front();
+}
+
 const code_table_t::node_t* code_table_t::root() const {
-    ensure(!nodes_.empty(), "empty table");
+    assert(!nodes_.empty() && "empty table");
     return std::addressof(nodes_.back());
 }
 
 const code_table_t::node_t* code_table_t::left(const code_table_t::node_t* node) const {
-    ensure(!node->is_leaf(), "at leaf node");
+    assert(!node->is_leaf() && "at leaf node");
     return std::addressof(nodes_[node->left]);
 }
 
 const code_table_t::node_t* code_table_t::right(const code_table_t::node_t* node) const {
-    ensure(!node->is_leaf(), "at leaf node");
+    assert(!node->is_leaf() && "at leaf node");
     return std::addressof(nodes_[node->right]);
 }
 
@@ -88,51 +90,26 @@ code_table_t build(const std::vector<symbol_def_t>& alphabet) {
     return code_table_t{ std::move(nodes) };
 }
 
-bit_vect_t encode(const code_table_t& code_table, std::string_view text) {
-    bit_vect_t output;
-    for (const char c : text) {
-        const code_table_t::node_t* current = code_table.root();
-        while (current) {
-            if (current->is_leaf()) {
-                //output.push_back(' ');
-                current = nullptr;
-            }
-            else if (code_table.left(current)->encodes(c)) {
-                output.push_back('0');
-                current = code_table.left(current);
-            }
-            else if (code_table.right(current)->encodes(c)) {
-                output.push_back('1');
-                current = code_table.right(current);
-            }
-            else
-                throw std::runtime_error("invalid alphabet");
-        }
-    }
-    return output;
-}
+class stringstream_writer {
+public:
+    explicit stringstream_writer(std::stringstream& str_p) : str(str_p) {}
 
-std::string decode(const code_table_t& code_table, bit_vect_t message) {
-    std::string output {};
-    const code_table_t::node_t* current = code_table.root();
-    for (const char c : message) {
-        if (c == '0') {
-            current = code_table.left(current);
-        }
-        else if (c == '1') {
-            current = code_table.right(current);
-        }
-        else if (c == ' ') { // skip
-        }
-        else
-            throw std::runtime_error("invalid message");
-        if (current->is_leaf()) {
-            output.push_back(current->symbols[0]);
-            current = code_table.root();
-        }
+    void emit_0() { str << '0'; }
+    void emit_1() { str << '1'; }
+
+private:
+    std::stringstream& str;
+};
+
+struct string_reader : public std::string {
+    explicit string_reader(const std::string& message) : std::string(message) {}
+
+    static bool is_set(char c) {
+        if (c == '0') return false;
+        if (c == '1') return true;
+        throw std::runtime_error("decode: invalid input");
     }
-    return output;
-}
+};
 
 } // namespace huffman
 
@@ -151,15 +128,22 @@ int main() {
     });
     std::cout << code_table << "\n";
 
-    const std::string text = "ABABCEDEDFGH";
+    auto encodeDecode = [&code_table](const std::string& text) {
+        std::stringstream encoded;
+        auto writer = huffman::stringstream_writer(encoded);
+        huffman::encode(code_table, text, writer);
+        std::cout << encoded.str() << "\n";
 
-    const auto encoded = huffman::encode(code_table, text);
-    std::cout << encoded << "\n";
+        const auto decoded = huffman::decode(code_table, huffman::string_reader(encoded.str()));
+        std::cout << decoded << "\n";
 
-    const auto decoded = huffman::decode(code_table, encoded);
-    std::cout << decoded << "\n";
+        std::cout << (decoded == text ? "OK" : "FAILED") << "\n";
+    };
 
-    std::cout << (decoded == text ? "OK" : "FAILED") << "\n";
+    encodeDecode("");
+    encodeDecode("A");
+    encodeDecode("H");
+    encodeDecode("ABABCEDEDFGH");
 
     return 0;
 }

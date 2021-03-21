@@ -8,7 +8,7 @@
 #include <string_view>
 #include <vector>
 
-/// Huffman code builder, endocder and decoder.
+/// Huffman code builder, encoder and decoder.
 /// Code table is a vector, linked via indices.
 
 namespace huffman {
@@ -23,6 +23,7 @@ public:
 
         bool is_leaf() const;
         bool encodes(char c) const;
+        char symbol() const;
     };
 
     explicit code_table_t(std::vector<node_t>&& nodes) : nodes_(std::move(nodes)) {}
@@ -43,12 +44,50 @@ struct symbol_def_t {
     char symbol;
     unsigned weight;
 };
-
-/// TODO: change to a more efficient implementation.
-using bit_vect_t = std::string;
-
 code_table_t build(const std::vector<symbol_def_t>& alphabet);
-std::string decode(const code_table_t& code_table, bit_vect_t message);
-bit_vect_t encode(const code_table_t& code_table, std::string_view text);
+
+/// TWriter must provide `emit_0` and `emit_1` methods.
+template <typename TWriter>
+void encode(const code_table_t& code_table, const char sym, TWriter& writer) {
+    const auto* current = code_table.root();
+    while (!current->is_leaf()) {
+        if (const auto* next = code_table.left(current); next->encodes(sym)) {
+            writer.emit_0();
+            current = next;
+        }
+        else if (const auto* next = code_table.right(current); next->encodes(sym)) {
+            writer.emit_1();
+            current = next;
+        }
+        else
+            throw std::runtime_error("encode: unknown symbol on input");
+    }
+}
+
+/// TWriter must provide `emit_0` and `emit_1` methods.
+template <typename TInput, typename TWriter>
+void encode(const code_table_t& code_table, const TInput& input, TWriter& writer) {
+    for (const auto& sym : input)
+        encode(code_table, sym, writer);
+}
+
+/// TReader must provide `cbegin`, `cend` and `is_set` methods.
+template <typename TReader>
+std::string decode(const code_table_t& code_table, const TReader& reader) {
+    std::string output {};
+    const auto* current = code_table.root();
+    for (const auto bit : reader) {
+        current = reader.is_set(bit)
+            ? code_table.right(current)
+            : code_table.left(current);
+        if (current->is_leaf()) {
+            output.push_back(current->symbol());
+            current = code_table.root();
+        }
+    }
+    if (current != code_table.root())
+        throw std::invalid_argument("decode: incomplete input");
+    return output;
+}
 
 } // namespace huffman
