@@ -6,47 +6,52 @@
 
 namespace huffman {
 
-bool code_vnode_t::is_leaf() const {
+bool code_table_t::node_t::is_leaf() const {
     return left < 0 && right < 0;
 }
 
-bool code_vnode_t::encodes(char c) const {
+bool code_table_t::node_t::encodes(char c) const {
     return symbols.find(c) != std::string::npos;
 }
 
-const code_vnode_t* code_table_t::root() const {
+const code_table_t::node_t* code_table_t::root() const {
     return nodes_.empty() ? nullptr : &nodes_.back();
 }
 
-const code_vnode_t* code_table_t::left(const code_vnode_t* node) const {
+const code_table_t::node_t* code_table_t::left(const code_table_t::node_t* node) const {
     return node->left < 0 ? nullptr : &nodes_[node->left];
 }
 
-const code_vnode_t* code_table_t::right(const code_vnode_t* node) const {
+const code_table_t::node_t* code_table_t::right(const code_table_t::node_t* node) const {
     return node->right < 0 ? nullptr : &nodes_[node->right];
 }
 
-std::ostream& operator << (std::ostream& ostr, const code_table_t& code_table) {
-    constexpr auto indent_spaces = 2;
+void code_table_t::walk(std::function<void(const code_table_t::node_t&, unsigned)> node_fn) const {
     auto level = 0;
-    auto indent = [&] {
-        return std::string(level * indent_spaces, ' ');
-    };
-    // Use `printer` to call `print_table` recrusively.
-    auto print_node = [&](const auto* node, auto& printer) -> void {
+    auto walker = [&](const auto* node, auto& walker_self) -> void {
         if (!node) return;
+        node_fn(*node, level);
         ++level;
-        ostr << indent() << "{" << node->symbols << "} " << node->weight << "\n";
-        printer(code_table.left(node), printer);
-        printer(code_table.right(node), printer);
+        walker_self(left(node), walker_self);
+        walker_self(right(node), walker_self);
         --level;
     };
-    print_node(code_table.root(), print_node);
+    walker(root(), walker);
+}
+
+std::ostream& operator << (std::ostream& ostr, const code_table_t& code_table) {
+    auto indent = [&](const auto level) {
+        constexpr auto indent_spaces = 2;
+        return std::string(level * indent_spaces, ' ');
+    };
+    code_table.walk([&](const auto& node, unsigned level){
+        ostr << indent(level) << "{" << node.symbols << "} " << node.weight << "\n";
+    });
     return ostr;
 }
 
-code_table_t build(std::vector<symbol_def_t> alphabet) {
-    std::vector<code_vnode_t> nodes;
+code_table_t build(const std::vector<symbol_def_t>& alphabet) {
+    std::vector<code_table_t::node_t> nodes;
     nodes.reserve(2 * alphabet.size());
     auto compare = [&](const int& left, const int& right) {
         return nodes[left].weight > nodes[right].weight;
@@ -71,7 +76,7 @@ code_table_t build(std::vector<symbol_def_t> alphabet) {
 bit_vect_t encode(const code_table_t& code_table, std::string_view text) {
     bit_vect_t output;
     for (const char c : text) {
-        const code_vnode_t* current = code_table.root();
+        const code_table_t::node_t* current = code_table.root();
         while (current) {
             if (current->is_leaf()) {
                 //output.push_back(' ');
@@ -94,7 +99,7 @@ bit_vect_t encode(const code_table_t& code_table, std::string_view text) {
 
 std::string decode(const code_table_t& code_table, bit_vect_t message) {
     std::string output {};
-    const code_vnode_t* current = code_table.root();
+    const code_table_t::node_t* current = code_table.root();
     for (const char c : message) {
         if (c == '0') {
             current = code_table.left(current);
@@ -117,7 +122,7 @@ std::string decode(const code_table_t& code_table, bit_vect_t message) {
 } // namespace huffman
 
 int main() {
-    std::cout << "Huffman encoding\n";
+    std::cout << "Huffman encoding/decoding\n";
 
     auto code_table = huffman::build({
         {'A', 8},
