@@ -3,10 +3,22 @@
 
 #include <queue>
 #include <stdexcept>
+#include <string_view>
 
 namespace huffman {
 
+void ensure(bool cond, std::string_view message) {
+    if (!cond)
+        throw std::runtime_error(std::string(message));
+}
+
+template <typename T>
+int sign(T value) {
+    return (value < T()) ? -1 : 1;
+}
+
 bool code_table_t::node_t::is_leaf() const {
+    ensure(sign(left) == sign(right), "unbalanced node");
     return left < 0 && right < 0;
 }
 
@@ -15,28 +27,31 @@ bool code_table_t::node_t::encodes(char c) const {
 }
 
 const code_table_t::node_t* code_table_t::root() const {
-    return nodes_.empty() ? nullptr : &nodes_.back();
+    ensure(!nodes_.empty(), "empty table");
+    return std::addressof(nodes_.back());
 }
 
 const code_table_t::node_t* code_table_t::left(const code_table_t::node_t* node) const {
-    return node->left < 0 ? nullptr : &nodes_[node->left];
+    ensure(!node->is_leaf(), "at leaf node");
+    return std::addressof(nodes_[node->left]);
 }
 
 const code_table_t::node_t* code_table_t::right(const code_table_t::node_t* node) const {
-    return node->right < 0 ? nullptr : &nodes_[node->right];
+    ensure(!node->is_leaf(), "at leaf node");
+    return std::addressof(nodes_[node->right]);
 }
 
 void code_table_t::walk(std::function<void(const code_table_t::node_t&, unsigned)> node_fn) const {
     auto level = 0;
-    auto walker = [&](const auto* node, auto& walker_self) -> void {
-        if (!node) return;
-        node_fn(*node, level);
+    auto walker = [&](const auto& node, auto& walker_self) -> void {
+        node_fn(node, level);
+        if (node.is_leaf()) return;
         ++level;
-        walker_self(left(node), walker_self);
-        walker_self(right(node), walker_self);
+        walker_self(*left(&node), walker_self);
+        walker_self(*right(&node), walker_self);
         --level;
     };
-    walker(root(), walker);
+    walker(*root(), walker);
 }
 
 std::ostream& operator << (std::ostream& ostr, const code_table_t& code_table) {
