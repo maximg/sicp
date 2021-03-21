@@ -94,8 +94,7 @@ class stringstream_writer {
 public:
     explicit stringstream_writer(std::stringstream& str_p) : str(str_p) {}
 
-    void emit_0() { str << '0'; }
-    void emit_1() { str << '1'; }
+    void emit(int bit) { str << (bit & 1); }
 
 private:
     std::stringstream& str;

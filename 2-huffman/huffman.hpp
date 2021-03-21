@@ -46,25 +46,27 @@ struct symbol_def_t {
 };
 code_table_t build(const std::vector<symbol_def_t>& alphabet);
 
-/// TWriter must provide `emit_0` and `emit_1` methods.
+/// This is the naive implementation which walks the coding table.
+/// In reality we would build a table (symbol, bits, length).
+/// TWriter must provide `emit` method.
 template <typename TWriter>
 void encode(const code_table_t& code_table, const char sym, TWriter& writer) {
     const auto* current = code_table.root();
     while (!current->is_leaf()) {
-        if (const auto* next = code_table.left(current); next->encodes(sym)) {
-            writer.emit_0();
-            current = next;
-        }
-        else if (const auto* next = code_table.right(current); next->encodes(sym)) {
-            writer.emit_1();
-            current = next;
-        }
-        else
+        const code_table_t::node_t* next;
+        const auto encode_bit = [&]() -> bool {
+            if ((next = code_table.right(current))->encodes(sym))
+                return true;
+            if ((next = code_table.left(current))->encodes(sym))
+                return false;
             throw std::runtime_error("encode: unknown symbol on input");
+        };
+        writer.emit(encode_bit() ? 1 : 0);
+        current = next;
     }
 }
 
-/// TWriter must provide `emit_0` and `emit_1` methods.
+/// TWriter must provide `emit` method.
 template <typename TInput, typename TWriter>
 void encode(const code_table_t& code_table, const TInput& input, TWriter& writer) {
     for (const auto& sym : input)
