@@ -86,10 +86,30 @@
   (mul-streams s
                (stream-map (lambda (x) (/ 1 x)) integers)))
 
-(define (ex3-59a)
+(define (ex3-59b)
   (define exp-series
     (stream-cons 1 (integrate-series exp-series)))
-  (p5 (integrate-series evens)))
+  (p5 exp-series))
 
+(define cosine-series (stream-cons 1 (scale-stream
+                                      (integrate-series sine-series) -1)))
+(define sine-series (stream-cons 0 (integrate-series cosine-series)))
 
-(ex3-59a)
+;; (p5 sine-series)
+
+;; 3.60 - mul-series
+;; from http://community.schemewiki.org/?sicp-ex-3.60
+
+(define (mul-series s1 s2)
+  (stream-cons (* (stream-car s1) (stream-car s2))
+               (add-streams (scale-stream (stream-cdr s2) (stream-car s1))
+                            (mul-series (stream-cdr s1) s2))))
+
+(define (ex3-60)
+  (define sin2-plus-cos2
+    (let ((sin2 (mul-series sine-series sine-series))
+          (cos2 (mul-series cosine-series cosine-series)))
+      (add-streams sin2 cos2)))
+  (p10 sin2-plus-cos2))
+
+(ex3-60)
